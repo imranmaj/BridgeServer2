@@ -11,10 +11,9 @@ import java.util.Map;
  * buckets which have a number of tokens in them. Buckets are periodically
  * refilled with tokens.
  * 
- * When a resource is acquired,
- * the tokens in its specified bucket are decremented. If the number of tokens
- * in a bucket is less than the decrement amount, the resource cannot be
- * acquired.
+ * When a resource is acquired, the tokens in its associated bucket are
+ * decremented. If the number of tokens in a bucket is less than the decrement
+ * amount, the resource cannot be acquired.
  */
 @Component
 public class TokenBucketRateLimiter {
