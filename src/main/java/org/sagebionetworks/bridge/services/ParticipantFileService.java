@@ -80,9 +80,11 @@ public class ParticipantFileService {
      * @throws BadRequestException if pageSize is less than API_MINIMUM_PAGE_SIZE or
      *                             greater
      *                             than API_MAXIMUM_PAGE_SIZE
+     * @throws LimitExceededException  if the user has requested to download too
+     *                                 much data
      */
     public ForwardCursorPagedResourceList<ParticipantFile> getParticipantFiles(String userId, String offsetKey,
-            int pageSize) {
+            int pageSize) throws BadRequestException, LimitExceededException {
         checkArgument(isNotBlank(userId));
 
         if (pageSize < API_MINIMUM_PAGE_SIZE || pageSize > API_MAXIMUM_PAGE_SIZE) {
@@ -111,8 +113,11 @@ public class ParticipantFileService {
      * @return the ParticipantFile with the pre-signed S3 download URL if this file
      *         exists
      * @throws EntityNotFoundException if the file does not exist.
+     * @throws LimitExceededException  if the user has requested to download too
+     *                                 much data
      */
-    public ParticipantFile getParticipantFile(String userId, String fileId) {
+    public ParticipantFile getParticipantFile(String userId, String fileId)
+            throws EntityNotFoundException, LimitExceededException {
         checkArgument(isNotBlank(userId));
         checkArgument(isNotBlank(fileId));
 
