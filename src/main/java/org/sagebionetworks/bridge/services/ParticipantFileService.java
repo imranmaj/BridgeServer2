@@ -10,6 +10,7 @@ import org.sagebionetworks.bridge.config.BridgeConfig;
 import org.sagebionetworks.bridge.dao.ParticipantFileDao;
 import org.sagebionetworks.bridge.exceptions.BadRequestException;
 import org.sagebionetworks.bridge.exceptions.EntityNotFoundException;
+import org.sagebionetworks.bridge.exceptions.LimitExceededException;
 import org.sagebionetworks.bridge.models.ForwardCursorPagedResourceList;
 import org.sagebionetworks.bridge.models.files.ParticipantFile;
 import org.sagebionetworks.bridge.validators.Validate;
@@ -42,6 +43,8 @@ public class ParticipantFileService {
 
     private String bucketName;
 
+    private TokenBucket tokenBucket;
+
     @Autowired
     final void setParticipantFileDao(ParticipantFileDao dao) {
         this.participantFileDao = dao;
@@ -57,34 +60,56 @@ public class ParticipantFileService {
         this.s3Client = s3;
     }
 
+    @Autowired
+    final void setTokenBucket(TokenBucket tokenBucket) {
+        this.tokenBucket = tokenBucket;
+    }
+
     /**
-     * Get a ForwardCursorPagedResourceList of ParticipantFiles from the given userId, with nextPageOffsetKey set.
-     * If nextPageOffsetKey is null, then the list reached the end and there does not exist next page.
+     * Get a ForwardCursorPagedResourceList of ParticipantFiles from the given
+     * userId, with nextPageOffsetKey set.
+     * If nextPageOffsetKey is null, then the list reached the end and there does
+     * not exist next page.
      *
-     * @param userId the id of the StudyParticipant
+     * @param userId    the id of the StudyParticipant
      * @param offsetKey the nextPageOffsetKey.
-     *                  (the exclusive starting offset of the query, if null, then query from the start)
-     * @param pageSize the number of items in the result page
+     *                  (the exclusive starting offset of the query, if null, then
+     *                  query from the start)
+     * @param pageSize  the number of items in the result page
      * @return a ForwardCursorPagedResourceList of ParticipantFiles
-     * @throws BadRequestException if pageSize is less than API_MINIMUM_PAGE_SIZE or greater
-     *         than API_MAXIMUM_PAGE_SIZE
+     * @throws BadRequestException if pageSize is less than API_MINIMUM_PAGE_SIZE or
+     *                             greater
+     *                             than API_MAXIMUM_PAGE_SIZE
      */
-    public ForwardCursorPagedResourceList<ParticipantFile> getParticipantFiles(String userId, String offsetKey, int pageSize) {
+    public ForwardCursorPagedResourceList<ParticipantFile> getParticipantFiles(String userId, String offsetKey,
+            int pageSize) {
         checkArgument(isNotBlank(userId));
 
         if (pageSize < API_MINIMUM_PAGE_SIZE || pageSize > API_MAXIMUM_PAGE_SIZE) {
             throw new BadRequestException(PAGE_SIZE_ERROR);
         }
-        return participantFileDao.getParticipantFiles(userId, offsetKey, pageSize);
+        ForwardCursorPagedResourceList<ParticipantFile> files = participantFileDao.getParticipantFiles(userId,
+                offsetKey, pageSize);
+        long totalFileSizes = 0;
+        for (ParticipantFile file : files.getItems()) {
+            totalFileSizes += s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
+        }
+        if (!tokenBucket.tryGetResource(userId, totalFileSizes)) {
+            throw new LimitExceededException("User requested to download too much data");
+        }
+
+        return files;
     }
 
     /**
-     * Returns this ParticipantFile metadata for download. If this file does not exist,
+     * Returns this ParticipantFile metadata for download. If this file does not
+     * exist,
      * throws EntityNotFoundException.
      *
      * @param userId the userId to be queried
      * @param fileId the fileId of the file
-     * @return the ParticipantFile with the pre-signed S3 download URL if this file exists
+     * @return the ParticipantFile with the pre-signed S3 download URL if this file
+     *         exists
      * @throws EntityNotFoundException if the file does not exist.
      */
     public ParticipantFile getParticipantFile(String userId, String fileId) {
@@ -93,6 +118,11 @@ public class ParticipantFileService {
 
         ParticipantFile file = participantFileDao.getParticipantFile(userId, fileId)
                 .orElseThrow(() -> new EntityNotFoundException(ParticipantFile.class));
+
+        long fileSizeBytes = s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
+        if (!tokenBucket.tryGetResource(userId, fileSizeBytes)) {
+            throw new LimitExceededException("User requested to download too much data");
+        }
 
         file.setDownloadUrl(generatePresignedRequest(file, GET).toExternalForm());
         return file;
