@@ -137,7 +137,7 @@ import org.sagebionetworks.bridge.models.schedules2.adherence.weekly.WeeklyAdher
 import org.sagebionetworks.bridge.models.schedules2.timelines.TimelineMetadata;
 import org.sagebionetworks.bridge.redis.JedisOps;
 import org.sagebionetworks.bridge.s3.S3Helper;
-import org.sagebionetworks.bridge.services.TokenBucket;
+import org.sagebionetworks.bridge.services.TokenBucketRateLimiter;
 import org.sagebionetworks.bridge.spring.filters.MetricsFilter;
 import org.sagebionetworks.bridge.spring.filters.RequestFilter;
 import org.sagebionetworks.bridge.spring.filters.StaticHeadersFilter;
@@ -279,9 +279,9 @@ public class SpringConfig {
         return AmazonSQSClientBuilder.standard().withRegion(US_EAST_1).build();
     }
 
-    @Bean(name = "tokenBucket")
-    public TokenBucket tokenBucket() {
-        return new TokenBucket();
+    @Bean(name = "tokenBucketRateLimiter")
+    public TokenBucketRateLimiter tokenBucketRateLimiter() {
+        return new TokenBucketRateLimiter();
     }
 
     @Bean(name = "asyncExecutorService")
