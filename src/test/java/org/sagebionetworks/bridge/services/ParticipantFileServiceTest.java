@@ -11,18 +11,24 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.Spy;
+import org.sagebionetworks.bridge.BridgeConstants;
 import org.sagebionetworks.bridge.TestConstants;
 import org.sagebionetworks.bridge.config.BridgeConfig;
 import org.sagebionetworks.bridge.dao.ParticipantFileDao;
 import org.sagebionetworks.bridge.exceptions.BadRequestException;
 import org.sagebionetworks.bridge.exceptions.EntityNotFoundException;
 import org.sagebionetworks.bridge.exceptions.InvalidEntityException;
+import org.sagebionetworks.bridge.exceptions.LimitExceededException;
+import org.sagebionetworks.bridge.models.ForwardCursorPagedResourceList;
 import org.sagebionetworks.bridge.models.files.ParticipantFile;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -32,6 +38,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 
 public class ParticipantFileServiceTest {
 
@@ -45,6 +52,13 @@ public class ParticipantFileServiceTest {
 
     @Mock
     AmazonS3 mockS3Client;
+
+    @Spy
+    RateLimiter mockRateLimiter = new RateLimiter(
+            BridgeConstants.PARTICIPANT_FILE_RATE_LIMITER_INITIAL_BYTES,
+            BridgeConstants.PARTICIPANT_FILE_RATE_LIMITER_MAXIMUM_BYTES,
+            BridgeConstants.PARTICIPANT_FILE_RATE_LIMITER_REFILL_INTERVAL_SECONDS,
+            BridgeConstants.PARTICIPANT_FILE_RATE_LIMITER_REFILL_BYTES);
 
     @InjectMocks
     ParticipantFileService service;
@@ -63,6 +77,12 @@ public class ParticipantFileServiceTest {
             GeneratePresignedUrlRequest request = i.getArgument(0);
             String filePath = request.getKey();
             return new URL("https://" + UPLOAD_BUCKET + "/" + filePath);
+        });
+
+        when(mockS3Client.getObjectMetadata(any(), any())).thenAnswer(invocation -> {
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentLength(100_000); // 100 KB
+            return metadata;
         });
 
         DateTimeUtils.setCurrentMillisFixed(TestConstants.TIMESTAMP.getMillis());
@@ -98,6 +118,17 @@ public class ParticipantFileServiceTest {
     }
 
     @Test
+    public void getParticipantFilesRateLimited() {
+        when(mockFileDao.getParticipantFiles("userid", null, 100)).thenAnswer(invocation -> {
+            List<ParticipantFile> files = new ArrayList<>();
+            for (int i = 0; i < 11; i++) {
+                files.add(ParticipantFile.create());
+            }
+            return new ForwardCursorPagedResourceList<>(files, null, true);
+        });
+    }
+
+    @Test
     public void getParticipantFile() {
         String downloadUrl = "https://" + UPLOAD_BUCKET + "/test_user/file_id";
         ParticipantFile file = ParticipantFile.create();
@@ -125,6 +156,23 @@ public class ParticipantFileServiceTest {
         assertEquals(request.getMethod(), HttpMethod.GET);
         assertEquals(request.getKey(), "test_user/file_id");
         assertEquals(request.getExpiration(), TestConstants.TIMESTAMP.plusDays(1).toDate());
+    }
+
+    @Test(expectedExceptions = { LimitExceededException.class })
+    public void getParticipantFileRateLimited() {
+        ParticipantFile file = ParticipantFile.create();
+        when(mockFileDao.getParticipantFile("userid", "fileid")).thenReturn(Optional.of(file));
+
+        for (int i = 0; i < 10; i++) {
+            try {
+                service.getParticipantFile("userid", "fileid");
+            } catch (LimitExceededException e) {
+                fail(String.format(
+                        "RateLimiter should not have rejected download %d of 100 KB with initial of 1 MB", i + 1));
+            }
+        }
+        service.getParticipantFile("userid", "fileid");
+        System.out.println("bar");
     }
 
     @Test(expectedExceptions = EntityNotFoundException.class)
