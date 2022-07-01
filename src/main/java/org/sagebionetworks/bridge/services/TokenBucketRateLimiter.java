@@ -73,10 +73,12 @@ public class TokenBucketRateLimiter {
      */
     private void refillTokens() {
         int sinceLastRefillMilliseconds = Instant.now().compareTo(lastRefill);
-        long tokensToRefill = (long) (sinceLastRefillMilliseconds / refillIntervalMilliseconds) * refillAmount;
+        int refillsCount = sinceLastRefillMilliseconds / refillIntervalMilliseconds;
+        long tokensToRefill = (long) refillsCount * refillAmount;
         if (tokensToRefill > 0) {
             buckets.forEach(
                     (resourceKey, tokenCount) -> tokenCount = Math.min(maximumTokens, tokenCount + tokensToRefill));
+            lastRefill = lastRefill.plus(refillsCount * refillIntervalMilliseconds);
         }
     }
 
