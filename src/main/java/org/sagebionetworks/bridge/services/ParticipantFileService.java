@@ -43,7 +43,7 @@ public class ParticipantFileService {
 
     private String bucketName;
 
-    private TokenBucketRateLimiter tokenBucket;
+    private TokenBucketRateLimiter rateLimiter;
 
     @Autowired
     final void setParticipantFileDao(ParticipantFileDao dao) {
@@ -61,8 +61,8 @@ public class ParticipantFileService {
     }
 
     @Autowired
-    final void setTokenBucket(TokenBucketRateLimiter tokenBucket) {
-        this.tokenBucket = tokenBucket;
+    final void setRateLimiter(TokenBucketRateLimiter rateLimiter) {
+        this.rateLimiter = rateLimiter;
     }
 
     /**
@@ -96,7 +96,7 @@ public class ParticipantFileService {
         for (ParticipantFile file : files.getItems()) {
             totalFileSizes += s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
         }
-        if (!tokenBucket.tryGetResource(userId, totalFileSizes)) {
+        if (!rateLimiter.tryGetResource(userId, totalFileSizes)) {
             throw new LimitExceededException("User requested to download too much data");
         }
 
@@ -125,7 +125,7 @@ public class ParticipantFileService {
                 .orElseThrow(() -> new EntityNotFoundException(ParticipantFile.class));
 
         long fileSizeBytes = s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
-        if (!tokenBucket.tryGetResource(userId, fileSizeBytes)) {
+        if (!rateLimiter.tryGetResource(userId, fileSizeBytes)) {
             throw new LimitExceededException("User requested to download too much data");
         }
 
