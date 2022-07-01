@@ -78,6 +78,8 @@ public class TokenBucketRateLimiter {
         if (tokensToRefill > 0) {
             buckets.forEach(
                     (resourceKey, tokenCount) -> tokenCount = Math.min(maximumTokens, tokenCount + tokensToRefill));
+            // It's not just Instant.now() because we want to save the time between the last
+            // whole number refill and now.
             lastRefill = lastRefill.plus(refillsCount * refillIntervalMilliseconds);
         }
     }
@@ -97,6 +99,10 @@ public class TokenBucketRateLimiter {
         refillTokens();
 
         long resourceCurrentTokens = buckets.getOrDefault(resourceKey, maximumTokens);
+        // If resourceKey doesn't exist in buckets and maximumTokens < tokenDecrement
+        // then resourceKey won't be inserted into buckets, but that's ok because that
+        // resource should still have maximumTokens and will be inserted the next time
+        // maximumTokens >= tokenDecrement for that resourceKey.
         if (resourceCurrentTokens >= tokenDecrement) {
             buckets.put(resourceKey, resourceCurrentTokens - tokenDecrement);
             return true;
