@@ -92,11 +92,11 @@ public class ParticipantFileService {
         }
         ForwardCursorPagedResourceList<ParticipantFile> files = participantFileDao.getParticipantFiles(userId,
                 offsetKey, pageSize);
-        long totalFileSizes = 0;
+        long totalFileSizesBytes = 0;
         for (ParticipantFile file : files.getItems()) {
-            totalFileSizes += s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
+            totalFileSizesBytes += s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
         }
-        if (!rateLimiter.tryGetResource(userId, totalFileSizes)) {
+        if (!rateLimiter.tryGetResource(userId, totalFileSizesBytes)) {
             throw new LimitExceededException("User requested to download too much data");
         }
 
