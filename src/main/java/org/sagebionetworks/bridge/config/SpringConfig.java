@@ -137,7 +137,7 @@ import org.sagebionetworks.bridge.models.schedules2.adherence.weekly.WeeklyAdher
 import org.sagebionetworks.bridge.models.schedules2.timelines.TimelineMetadata;
 import org.sagebionetworks.bridge.redis.JedisOps;
 import org.sagebionetworks.bridge.s3.S3Helper;
-import org.sagebionetworks.bridge.services.TokenBucketByteRateLimiter;
+import org.sagebionetworks.bridge.services.RateLimiter;
 import org.sagebionetworks.bridge.spring.filters.MetricsFilter;
 import org.sagebionetworks.bridge.spring.filters.RequestFilter;
 import org.sagebionetworks.bridge.spring.filters.StaticHeadersFilter;
@@ -280,8 +280,12 @@ public class SpringConfig {
     }
 
     @Bean(name = "rateLimiter")
-    public ratelimi tokenBucketRateLimiter() {
-        return new TokenBucketByteRateLimiter();
+    public RateLimiter rateLimiter() {
+        return new RateLimiter(
+                BridgeConstants.PARTICIPANT_FILE_RATE_LIMITER_INITIAL_BYTES,
+                BridgeConstants.PARTICIPANT_FILE_RATE_LIMITER_MAXIMUM_BYTES,
+                BridgeConstants.PARTICIPANT_FILE_RATE_LIMITER_REFILL_INTERVAL_SECONDS,
+                BridgeConstants.PARTICIPANT_FILE_RATE_LIMITER_REFILL_BYTES);
     }
 
     @Bean(name = "asyncExecutorService")

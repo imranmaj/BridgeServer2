@@ -90,14 +90,14 @@ public class RateLimiter {
      * @param maximumTokens         The maximum number of tokens that can be stored
      *                              in each bucket.
      * @param refillIntervalSeconds The time between token refills for every
-     *                              bucket in milliseconds.
+     *                              bucket in seconds.
      * @param refillAmount          The number of tokens that are placed into
      *                              each bucket during a refill.
      */
-    public RateLimiter(long initialTokens, long maximumTokens, long refillIntervalMilliseconds, long refillAmount) {
+    public RateLimiter(long initialTokens, long maximumTokens, long refillIntervalSeconds, long refillAmount) {
         this.initialTokens = initialTokens;
         this.maximumTokens = maximumTokens;
-        this.refillIntervalSeconds = refillIntervalMilliseconds;
+        this.refillIntervalSeconds = refillIntervalSeconds;
         this.refillAmount = refillAmount;
     }
 
