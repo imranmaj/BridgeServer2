@@ -28,6 +28,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.sagebionetworks.bridge.BridgeConstants.API_MAXIMUM_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.API_MINIMUM_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.PAGE_SIZE_ERROR;
+import static org.sagebionetworks.bridge.BridgeConstants.PARTICIPANT_FILE_RATE_LIMIT_ERROR;
 import static org.sagebionetworks.bridge.validators.ParticipantFileValidator.INSTANCE;
 
 @Component
@@ -97,7 +98,7 @@ public class ParticipantFileService {
             totalFileSizesBytes += s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
         }
         if (!rateLimiter.tryAcquireResource(userId, totalFileSizesBytes)) {
-            throw new LimitExceededException("User requested to download too much data");
+            throw new LimitExceededException(PARTICIPANT_FILE_RATE_LIMIT_ERROR);
         }
 
         return files;
@@ -126,7 +127,7 @@ public class ParticipantFileService {
 
         long fileSizeBytes = s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
         if (!rateLimiter.tryAcquireResource(userId, fileSizeBytes)) {
-            throw new LimitExceededException("User requested to download too much data");
+            throw new LimitExceededException(PARTICIPANT_FILE_RATE_LIMIT_ERROR);
         }
 
         file.setDownloadUrl(generatePresignedRequest(file, GET).toExternalForm());
