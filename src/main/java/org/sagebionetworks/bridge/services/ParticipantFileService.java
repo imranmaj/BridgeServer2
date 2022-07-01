@@ -93,6 +93,10 @@ public class ParticipantFileService {
         }
         ForwardCursorPagedResourceList<ParticipantFile> files = participantFileDao.getParticipantFiles(userId,
                 offsetKey, pageSize);
+        if (files == null) {
+            return null;
+        }
+
         long totalFileSizesBytes = 0;
         for (ParticipantFile file : files.getItems()) {
             totalFileSizesBytes += s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
@@ -125,9 +129,12 @@ public class ParticipantFileService {
         ParticipantFile file = participantFileDao.getParticipantFile(userId, fileId)
                 .orElseThrow(() -> new EntityNotFoundException(ParticipantFile.class));
 
-        long fileSizeBytes = s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
-        if (!rateLimiter.tryAcquireResource(userId, fileSizeBytes)) {
-            throw new LimitExceededException(PARTICIPANT_FILE_RATE_LIMIT_ERROR);
+        ObjectMetadata metadata = s3Client.getObjectMetadata(bucketName, getFilePath(file));
+        if (metadata != null) {
+            long fileSizeBytes = metadata.getContentLength();
+            if (!rateLimiter.tryAcquireResource(userId, fileSizeBytes)) {
+                throw new LimitExceededException(PARTICIPANT_FILE_RATE_LIMIT_ERROR);
+            }
         }
 
         file.setDownloadUrl(generatePresignedRequest(file, GET).toExternalForm());
