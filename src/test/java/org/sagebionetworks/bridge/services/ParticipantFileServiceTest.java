@@ -117,7 +117,7 @@ public class ParticipantFileServiceTest {
         service.getParticipantFiles("test_user", null, 5000);
     }
 
-    @Test
+    @Test(expectedExceptions = {LimitExceededException.class})
     public void getParticipantFilesRateLimited() {
         when(mockFileDao.getParticipantFiles("userid", null, 100)).thenAnswer(invocation -> {
             List<ParticipantFile> files = new ArrayList<>();
@@ -126,6 +126,8 @@ public class ParticipantFileServiceTest {
             }
             return new ForwardCursorPagedResourceList<>(files, null, true);
         });
+
+        service.getParticipantFiles("userid", null, 100);
     }
 
     @Test
