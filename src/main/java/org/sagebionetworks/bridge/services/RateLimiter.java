@@ -13,6 +13,7 @@ import java.util.Map;
  */
 @Component
 public class RateLimiter {
+    // The initial amount of tokens in each bucket when it is created.
     private long initialTokens;
     // The maximum number of tokens that can be stored in each bucket. This is also
     // the default number of tokens in each bucket.
