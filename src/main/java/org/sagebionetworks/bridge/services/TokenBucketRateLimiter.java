@@ -93,12 +93,11 @@ public class TokenBucketRateLimiter {
      * @return A boolean determining whether the resource can be acquired (true if
      *         it can be acquired, false if it cannot).
      */
-    public boolean tryGetResource(String resourceKey, long tokenDecrement) {
+    public boolean tryAcquireResource(String resourceKey, long tokenDecrement) {
         refillTokens();
 
-        buckets.putIfAbsent(resourceKey, maximumTokens);
-        long resourceCurrentTokens = buckets.get(resourceKey);
-        if (buckets.get(resourceKey) >= tokenDecrement) {
+        long resourceCurrentTokens = buckets.getOrDefault(resourceKey, maximumTokens);
+        if (resourceCurrentTokens >= tokenDecrement) {
             buckets.put(resourceKey, resourceCurrentTokens - tokenDecrement);
             return true;
         }

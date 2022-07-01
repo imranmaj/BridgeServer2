@@ -96,7 +96,7 @@ public class ParticipantFileService {
         for (ParticipantFile file : files.getItems()) {
             totalFileSizesBytes += s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
         }
-        if (!rateLimiter.tryGetResource(userId, totalFileSizesBytes)) {
+        if (!rateLimiter.tryAcquireResource(userId, totalFileSizesBytes)) {
             throw new LimitExceededException("User requested to download too much data");
         }
 
@@ -125,7 +125,7 @@ public class ParticipantFileService {
                 .orElseThrow(() -> new EntityNotFoundException(ParticipantFile.class));
 
         long fileSizeBytes = s3Client.getObjectMetadata(bucketName, getFilePath(file)).getContentLength();
-        if (!rateLimiter.tryGetResource(userId, fileSizeBytes)) {
+        if (!rateLimiter.tryAcquireResource(userId, fileSizeBytes)) {
             throw new LimitExceededException("User requested to download too much data");
         }
 
