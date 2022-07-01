@@ -43,7 +43,7 @@ public class ParticipantFileService {
 
     private String bucketName;
 
-    private TokenBucketRateLimiter rateLimiter;
+    private TokenBucketByteRateLimiter rateLimiter;
 
     @Autowired
     final void setParticipantFileDao(ParticipantFileDao dao) {
@@ -61,7 +61,7 @@ public class ParticipantFileService {
     }
 
     @Autowired
-    final void setRateLimiter(TokenBucketRateLimiter rateLimiter) {
+    final void setRateLimiter(TokenBucketByteRateLimiter rateLimiter) {
         this.rateLimiter = rateLimiter;
     }
 
